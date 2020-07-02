@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.1.
+-- This file has been generated from package.yaml by hpack version 0.34.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6ded7cf2df24e6a9253bcb9338960164b09e10e292473a083cf08b988c34a386
+-- hash: 1d2f4d3e4e0bf22f04b290bfbdb05187c2c2690f0f706ecc23810958c508e788
 
 name:           cmruncc
 version:        0.1.0.0
@@ -57,6 +57,7 @@ executable cmruncc-builder
     , bytestring
     , cmruncc
     , filepath
+    , mtl
     , network
     , process
     , text
@@ -66,15 +67,24 @@ executable cmruncc-builder
 executable cmruncc-runner
   main-is: Main.hs
   other-modules:
+      Config
+      Pty
       Paths_cmruncc
   hs-source-dirs:
       runner
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , base16-bytestring
     , bytestring
     , cmruncc
+    , mtl
     , network
+    , posix-pty
+    , process
+    , temporary
+    , text
+    , yaml
   default-language: Haskell2010
 
 executable cmruncc-sched
@@ -82,6 +92,8 @@ executable cmruncc-sched
   other-modules:
       Builder
       Common
+      Config
+      Runner
       Paths_cmruncc
   hs-source-dirs:
       sched
@@ -92,6 +104,7 @@ executable cmruncc-sched
     , cmruncc
     , containers
     , network
+    , yaml
   default-language: Haskell2010
 
 test-suite cmruncc-test

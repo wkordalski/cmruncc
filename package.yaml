@@ -46,6 +46,7 @@ executables:
     - bytestring
     - containers
     - network
+    - yaml
   cmruncc-builder:
     main:                Main.hs
     source-dirs:         builder
@@ -61,6 +62,7 @@ executables:
     - bytestring
     - process
     - text
+    - mtl
   cmruncc-runner:
     main:                Main.hs
     source-dirs:         runner
@@ -72,6 +74,13 @@ executables:
     - cmruncc
     - network
     - bytestring
+    - yaml
+    - process
+    - text
+    - posix-pty
+    - temporary
+    - mtl
+    - base16-bytestring
 
 
 

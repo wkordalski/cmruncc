@@ -10,7 +10,10 @@ import Data.IORef
 import Control.Concurrent
 import Network.Socket (Socket)
 import Builder (handleBuilderClient)
-import Common (BuildQueue, locking)
+import Runner (handleRunnerClient)
+import Common (BuildQueue, ResponseQueue, BuildResultsStorage, initBuildResultsStorage, locking)
+import Control.Monad
+import Config (SchedConfig (..), readConfig)
 
 data Client = Client {
     socket :: Socket
@@ -27,35 +30,32 @@ initClients = do
 withClients :: Requests -> (IORef (M.Map String Client) -> IO a) -> IO a
 withClients c f = do
     let (lock, map) = c
-    takeMVar lock
-    res <- f map
-    putMVar lock ()
-    return res
+    f map `locking` lock
 
 addIdentifierForClient :: String -> Client -> Requests -> IO ()
 addIdentifierForClient k v c = withClients c $ \m -> do
     map <- readIORef m
     writeIORef m $ M.insert k v map
 
-
-
-
--- Global state:
---  build_results: id -> build result { flash + addresses }
---  run_queries: [run query]
-
 main :: IO ()
 main = do
+    SchedConfig { listen_address } <- readConfig
+
     clients <- initClients
     buildQueue <- newChan
+    runQueue <- newChan
+    responseQueue <- newChan
+    buildStorage <- initBuildResultsStorage
 
-    addrB <- resolve "0.0.0.0" "4243"
-    forkIO $ server addrB $ handleBuilderClient buildQueue
+    addrB <- resolve listen_address "4243"
+    forkIO $ server addrB $ handleBuilderClient buildQueue runQueue buildStorage
 
-    addrR <- resolve "0.0.0.0" "4244"
-    forkIO $ server addrR $ handleRunnerClient
+    addrR <- resolve listen_address "4244"
+    forkIO $ server addrR $ handleRunnerClient runQueue responseQueue buildStorage
 
-    addr <- resolve "0.0.0.0" "4242"
+    forkIO $ responseThread responseQueue clients
+
+    addr <- resolve listen_address "4242"
     server addr $ handlePublicAPIClient clients buildQueue
 
 handlePublicAPIClient :: Requests -> BuildQueue -> Socket -> IO ()
@@ -69,22 +69,11 @@ publicAPI c clients build_queue r = do
     let PublicAPIRequest { ident } = r
     addIdentifierForClient ident c clients
     writeChan build_queue r
-    withClients clients $ \_ -> do
-        send (socket c) $ PublicAPIResponse {
-                ident = ident,
-                flash = B.pack [0, 1, 2, 3],
-                emulator_main_addr = 1,
-                emulator_cdl_start_addr = 2,
-                emulator_exit_addr = 3,
-                mem_dump = [("times", 53, B.pack [0, 0, 0, 1])]
-            }
 
-
-handleRunnerClient :: Socket -> IO ()
-handleRunnerClient sock = do
-    handle (runnerAPI) sock
-    return ()
-
-runnerAPI :: Int -> IO ()
-runnerAPI r = do
-    putStrLn $ show r
+responseThread :: ResponseQueue -> Requests -> IO ()
+responseThread response_queue clients = forever $ do
+    resp <- readChan response_queue
+    let PublicAPIResponse {ident} = resp
+    withClients clients $ \m -> do
+        map <- readIORef m
+        send (socket $ map M.! ident) resp

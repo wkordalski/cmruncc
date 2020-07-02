@@ -1,9 +1,10 @@
-{-# LANGUAGE DuplicateRecordFields, NamedFieldPuns #-}
+{-# LANGUAGE DuplicateRecordFields, NamedFieldPuns, RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module CMRunCC.Messages (
     readMessage, writeMessage,
     RunRequest (..), PublicAPIRequest (..), PublicAPIResponse (..),
-    BuildResults (..)) where
+    BuildResults (..), RunResults (..)) where
 
 import Network.Socket (Socket)
 import Network.Socket.ByteString (recv, sendAll)
@@ -84,7 +85,7 @@ data PublicAPIRequest = PublicAPIRequest {
 } deriving Show
 
 instance MP.MessagePack PublicAPIRequest where
-    toObject (PublicAPIRequest { ident, build_spec, sources, symbols }) = makeMap [
+    toObject (PublicAPIRequest { .. }) = makeMap [
             "ident" ~~> ident,
             "build_spec" ~~> build_spec,
             "sources" ~~> sources,
@@ -96,7 +97,7 @@ instance MP.MessagePack PublicAPIRequest where
         build_spec <- v !~> "build_spec"
         sources <- v !~> "sources"
         symbols <- v !~> "symbols"
-        return $ PublicAPIRequest { ident, build_spec, sources, symbols }
+        return $ PublicAPIRequest { .. }
 
 data PublicAPIResponse = PublicAPIResponse {
     ident :: String,
@@ -108,7 +109,7 @@ data PublicAPIResponse = PublicAPIResponse {
 }
 
 instance MP.MessagePack PublicAPIResponse where
-    toObject (PublicAPIResponse { ident, flash, emulator_main_addr, emulator_cdl_start_addr, emulator_exit_addr, mem_dump}) =
+    toObject (PublicAPIResponse { .. }) =
         makeMap [
                 "ident" ~~> ident,
                 "flash" ~~> flash,
@@ -126,11 +127,7 @@ instance MP.MessagePack PublicAPIResponse where
         emulator_cdl_start_addr <- v !~> "emulator_cdl_start_addr"
         emulator_exit_addr <- v !~> "emulator_exit_addr"
         mem_dump <- v !~> "mem_dump"
-        return $ PublicAPIResponse {
-                ident, flash,
-                emulator_main_addr, emulator_cdl_start_addr, emulator_exit_addr,
-                mem_dump
-            }
+        return $ PublicAPIResponse { .. }
 
 data BuildResults = BuildResults {
     ident :: String,
@@ -143,7 +140,7 @@ data BuildResults = BuildResults {
 } deriving Show
 
 instance MP.MessagePack BuildResults where
-    toObject (BuildResults { ident, flash, hex, emulator_main_addr, emulator_cdl_start_addr, emulator_exit_addr, symbols }) = makeMap [
+    toObject (BuildResults { .. }) = makeMap [
             "ident" ~~> ident,
             "flash" ~~> flash,
             "hex" ~~> hex,
@@ -156,28 +153,49 @@ instance MP.MessagePack BuildResults where
     fromObject o = do
         v <- expectMap o
         ident <- v !~> "ident"
-        flash <- v !~> "flash" :: Maybe ByteString
-        hex <- v !~> "hex" :: Maybe ByteString
+        flash <- v !~> "flash"
+        hex <- v !~> "hex"
         emulator_main_addr <- v !~> "emulator_main_addr"
         emulator_cdl_start_addr <- v !~> "emulator_cdl_start_addr"
         emulator_exit_addr <- v !~> "emulator_exit_addr"
         symbols <- v !~> "symbols"
-        return $ BuildResults { ident, flash, hex, emulator_main_addr, emulator_cdl_start_addr, emulator_exit_addr, symbols }
+        return $ BuildResults { .. }
 
 
 data RunRequest = RunRequest {
     hex :: ByteString,
-    ident :: ByteString
+    ident :: String,
+    symbols :: [(String, Int)]
 } deriving Show
 
 instance MP.MessagePack RunRequest where
-    toObject (RunRequest { hex = hex, ident = ident }) = makeMap [
-            "hex" ~~> MP.toObject hex,
-            "ident" ~~> MP.toObject ident
+    toObject (RunRequest { .. }) = makeMap [
+            "hex" ~~> hex,
+            "ident" ~~> ident,
+            "symbols" ~~> symbols
         ]
     fromObject o = do
         v <- expectMap o
         hex <- v !~> "hex"
         ident <- v !~> "ident"
-        return $ RunRequest { hex = hex, ident = ident }
+        symbols <- v !~> "symbols"
+        return $ RunRequest { .. }
+
+
+data RunResults = RunResults {
+    ident :: String,
+    symbols :: [(String, Int, ByteString)]
+} deriving Show
+
+instance MP.MessagePack RunResults where
+    toObject (RunResults { .. }) = makeMap [
+            "ident" ~~> ident,
+            "symbols" ~~> symbols
+        ]
+    fromObject o = do
+        v <- expectMap o
+        ident <- v !~> "ident"
+        symbols <- v !~> "symbols"
+        return $ RunResults { .. }
+
 

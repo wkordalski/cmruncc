@@ -6,11 +6,12 @@ import Data.Yaml
 import System.FilePath
 
 data BuilderConfig = BuilderConfig {
-    builders :: [FilePath]
+    builders :: [FilePath],
+    scheduler_address :: String
 }
 
 instance FromJSON BuilderConfig where
-    parseJSON (Object m) = BuilderConfig <$> m .: "builders"
+    parseJSON (Object m) = BuilderConfig <$> m .: "builders" <*> m .: "scheduler_address"
     parseJSON _ = fail ("Builder config has incorrect format")
 
 readConfig :: IO BuilderConfig

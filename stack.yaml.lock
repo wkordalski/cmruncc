@@ -11,6 +11,13 @@ packages:
       sha256: 9b6a847c24cc11e6cf83582ad02740142c9cd0e80c88aa718895fd31fb401482
   original:
     hackage: msgpack-1.0.1.0@sha256:a87b663fc28d661b41552331d22e10b34028cad8a592ae758ac47e363933b6bd,3004
+- completed:
+    hackage: posix-pty-0.2.1.1@sha256:f1e54f10c49d9f27dba33539391659d2daa4874badc1554ffc6c25b329ef1db6,2161
+    pantry-tree:
+      size: 512
+      sha256: d8901f7c8c42c767092262da42e1ff1911151310f4cd87f1ee278d168121ecee
+  original:
+    hackage: posix-pty-0.2.1.1@sha256:f1e54f10c49d9f27dba33539391659d2daa4874badc1554ffc6c25b329ef1db6,2161
 snapshots:
 - completed:
     size: 496112
