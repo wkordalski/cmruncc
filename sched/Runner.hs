@@ -4,6 +4,7 @@ module Runner (handleRunnerClient) where
 
 import Control.Concurrent
 import Control.Monad
+import qualified Control.Exception as E
 import Data.IORef
 import qualified Data.Map as M
 import Network.Socket
@@ -44,13 +45,15 @@ handleRunnerClient run_queue response_queue storage sock = do
     wait <- newMVar ()
     let runner = Runner { lock, wait, requests }
     feeder_thread <- forkIO $ runnerFeeder sock runner run_queue
-    handle (runnerAPI runner response_queue storage) sock
-    killThread feeder_thread
-    reqs <- locked runner $ do
-        reqs <- readIORef $ requests
-        return $ M.toList reqs
-    forM reqs (\(_, req) -> writeChan run_queue req)
-    return ()
+    E.finally (handle (runnerAPI runner response_queue storage) sock)
+        (do
+            killThread feeder_thread
+            reqs <- locked runner $ do
+                reqs <- readIORef $ requests
+                return $ M.toList reqs
+            putStrLn $ "Recovering requests: " ++ show (length reqs)
+            forM_ reqs (\(_, req) -> writeChan run_queue req)
+        )
 
 -- Process received messages
 runnerAPI :: Runner -> ResponseQueue -> BuildResultsStorage -> RunResults -> IO ()
@@ -77,7 +80,7 @@ runnerFeeder sock runner run_queue = do
     rq <- readChan run_queue
     let RunRequest {ident} = rq
     -- send request to runner
-    send sock rq
+    E.onException (send sock rq) (writeChan run_queue rq)    
     add runner ident rq
     -- if runner is well-fed, wait for some request done
     takeMVar $ wait runner

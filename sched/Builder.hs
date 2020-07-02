@@ -4,6 +4,7 @@ module Builder (handleBuilderClient) where
 
 import Control.Concurrent
 import Control.Monad
+import qualified Control.Exception as E
 import Data.IORef
 import qualified Data.Map as M
 import Network.Socket
@@ -43,13 +44,14 @@ handleBuilderClient build_queue run_queue storage sock = do
     wait <- newMVar ()
     let builder = Builder { lock, wait, requests }
     feeder_thread <- forkIO $ builderFeeder sock builder build_queue
-    handle (builderAPI builder run_queue storage) sock
-    killThread feeder_thread
-    reqs <- locked builder $ do
-        reqs <- readIORef $ requests
-        return $ M.toList reqs
-    forM reqs (\(_, req) -> writeChan build_queue req)
-    return ()
+    E.finally (handle (builderAPI builder run_queue storage) sock)
+        (do
+            killThread feeder_thread
+            reqs <- locked builder $ do
+                reqs <- readIORef $ requests
+                return $ M.toList reqs
+            forM_ reqs (\(_, req) -> writeChan build_queue req)
+        )
 
 -- Process received messages
 builderAPI :: Builder -> RunQueue -> BuildResultsStorage -> BuildResults -> IO ()
@@ -67,7 +69,7 @@ builderFeeder sock builder build_queue = do
     rq <- readChan build_queue
     let PublicAPIRequest {ident} = rq
     -- send request to builder
-    send sock rq
+    E.onException (send sock rq) (writeChan build_queue rq)
     add builder ident rq
     -- if builder is well-fed, wait for some request done
     takeMVar $ wait builder
