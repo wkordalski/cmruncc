@@ -3,8 +3,9 @@
 module Builder (handleBuilderClient) where
 
 import Control.Concurrent
+import Control.Monad
 import Data.IORef
-import qualified Data.Set as S
+import qualified Data.Map as M
 import Network.Socket
 
 import Common (BuildQueue, RunQueue, BuildResultsStorage, insertResultIntoStorage, locking)
@@ -14,30 +15,30 @@ import CMRunCC.Network (handle, send)
 data Builder = Builder {
     lock :: MVar (),
     wait :: MVar (),
-    requests :: IORef (S.Set String)
+    requests :: IORef (M.Map String PublicAPIRequest)
 }
 
 locked :: Builder -> IO a -> IO a
 locked b f = let Builder { lock } = b in f `locking` lock
 
-add :: Builder -> String -> IO ()
-add b n = locked b $ do
+add :: Builder -> String -> PublicAPIRequest -> IO ()
+add b n r = locked b $ do
     reqs <- readIORef $ requests b
-    let new_reqs = S.insert n reqs
-    if S.size new_reqs > 16 then takeMVar (wait b) else return ()
+    let new_reqs = M.insert n r reqs
+    if M.size new_reqs > 16 then takeMVar (wait b) else return ()
     writeIORef (requests b) new_reqs
 
 done :: Builder -> String -> IO ()
 done b n = locked b $ do
     reqs <- readIORef $ requests b
-    let new_reqs = S.delete n reqs
-    if S.size new_reqs < 16 then tryPutMVar (wait b) () >> return () else return ()
+    let new_reqs = M.delete n reqs
+    if M.size new_reqs < 16 then tryPutMVar (wait b) () >> return () else return ()
     writeIORef (requests b) new_reqs
 
 
 handleBuilderClient :: BuildQueue -> RunQueue -> BuildResultsStorage -> Socket -> IO ()
 handleBuilderClient build_queue run_queue storage sock = do
-    requests <- newIORef $ S.empty
+    requests <- newIORef $ M.empty
     lock <- newMVar ()
     wait <- newMVar ()
     let builder = Builder { lock, wait, requests }
@@ -46,8 +47,8 @@ handleBuilderClient build_queue run_queue storage sock = do
     killThread feeder_thread
     reqs <- locked builder $ do
         reqs <- readIORef $ requests
-        return $ S.toList reqs
-    -- TODO: browse reqs and add requests to the build queue again
+        return $ M.toList reqs
+    forM reqs (\(_, req) -> writeChan build_queue req)
     return ()
 
 -- Process received messages
@@ -67,7 +68,7 @@ builderFeeder sock builder build_queue = do
     let PublicAPIRequest {ident} = rq
     -- send request to builder
     send sock rq
-    add builder ident
+    add builder ident rq
     -- if builder is well-fed, wait for some request done
     takeMVar $ wait builder
     putMVar (wait builder) ()

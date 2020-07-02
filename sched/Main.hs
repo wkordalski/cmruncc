@@ -77,3 +77,4 @@ responseThread response_queue clients = forever $ do
     withClients clients $ \m -> do
         map <- readIORef m
         send (socket $ map M.! ident) resp
+        writeIORef m $ M.delete ident map
