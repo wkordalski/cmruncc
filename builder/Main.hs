@@ -3,20 +3,20 @@
 
 module Main where
 
-import Network.Socket
-import CMRunCC.Network (resolve, handle, send)
-import CMRunCC.Messages (PublicAPIRequest (..), BuildResults (..))
-import qualified Control.Exception as E
 import Control.Concurrent
+import qualified Control.Exception as E
 import Control.Monad
-import System.FilePath
-import qualified Data.ByteString.Char8 as BS
-import System.Process
-import qualified Data.Text as T
-import qualified Data.Text.IO as TI
 import Control.Monad.Except
 import Control.Monad.IO.Class
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.Text as T
+import qualified Data.Text.IO as TI
+import Network.Socket
+import System.FilePath
+import System.Process
 
+import CMRunCC.Network (resolve, handle, send)
+import CMRunCC.Messages (PublicAPIRequest (..), BuildResults (..))
 import Config ( readConfig, BuilderConfig (..) )
 
 type BuildQueue = Chan PublicAPIRequest
@@ -40,7 +40,6 @@ main = do
 communication build_queue results_queue sock = do
     forkIO $ sender results_queue sock
     handle (received build_queue) sock
-    return ()
 
 received :: BuildQueue -> PublicAPIRequest -> IO ()
 received build_queue rr = do

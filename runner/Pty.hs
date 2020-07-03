@@ -14,16 +14,15 @@ import qualified Control.Exception as E
 data BPty = BPty {
     chan :: Chan BS.ByteString,
     buf :: IORef BS.ByteString,
-    ph :: ProcessHandle,
-    rth :: ThreadId
+    reader_th :: ThreadId
 }
 
 makeBPty :: Pty -> ProcessHandle -> IO BPty
 makeBPty pty ph = do
     chan <- newChan
-    rth <- forkFinally (ptyThread chan pty) (\_ -> terminateProcess ph >> closePty pty)
+    reader_th <- forkFinally (ptyThread chan pty) (\_ -> terminateProcess ph >> closePty pty)
     buf <- newIORef $ BS.empty
-    return $ BPty { chan=chan, buf=buf, ph=ph, rth=rth }
+    return $ BPty { chan=chan, buf=buf, reader_th=reader_th }
 
 ptyThread :: Chan BS.ByteString -> Pty -> IO ()
 ptyThread ch pty = forever $ do
@@ -36,14 +35,13 @@ ptyThread ch pty = forever $ do
 
 killBPty :: BPty -> IO ()
 killBPty bpty = do
-    let BPty { rth } = bpty
-    killThread rth          -- stop reader thread
+    let BPty { reader_th } = bpty
+    killThread reader_th
 
 feed :: BPty -> IO ()
 feed bpty = do
     let BPty { chan, buf } = bpty
     bs <- readChan chan
-    --BSC.putStrLn bs
     b <- readIORef buf
     writeIORef buf $ BS.append b bs
 

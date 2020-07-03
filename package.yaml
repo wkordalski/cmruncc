@@ -43,8 +43,10 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - cmruncc
+    - aeson
     - bytestring
     - containers
+    - msgpack
     - network
     - yaml
   cmruncc-builder:
@@ -56,13 +58,14 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - cmruncc
-    - network
-    - yaml
-    - filepath
+    - aeson
     - bytestring
+    - filepath
+    - mtl
+    - network
     - process
     - text
-    - mtl
+    - yaml
   cmruncc-runner:
     main:                Main.hs
     source-dirs:         runner
@@ -72,17 +75,17 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - cmruncc
-    - network
-    - bytestring
-    - yaml
-    - process
-    - text
-    - posix-pty
-    - temporary
-    - mtl
+    - aeson
     - base16-bytestring
-
-
+    - bytestring
+    - filepath
+    - mtl
+    - network
+    - posix-pty
+    - process
+    - temporary
+    - text
+    - yaml
 
 tests:
   cmruncc-test:

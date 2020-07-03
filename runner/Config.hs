@@ -1,19 +1,19 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
 
 module Config (readConfig, RunnerConfig (..)) where
 
+import Data.Aeson.TH
 import Data.Yaml
+import System.FilePath
 
 data RunnerConfig = RunnerConfig {
     devices :: [String],
-    heni_cmd :: String,
-    temp_dir :: String,
+    heni_cmd :: FilePath,
+    temp_dir :: FilePath,
     scheduler_address :: String
 }
 
-instance FromJSON RunnerConfig where
-    parseJSON (Object m) = RunnerConfig <$> m .: "devices" <*> m .: "heni_cmd" <*> m .: "temp_dir" <*> m .: "scheduler_address"
-    parseJSON _ = fail ("Builder config has incorrect format")
+$(deriveJSON defaultOptions ''RunnerConfig)
 
 readConfig :: IO RunnerConfig
 readConfig = do

@@ -1,13 +1,14 @@
 module CMRunCC.Network (resolve, server, handle, send) where
 
-import Network.Socket
-import qualified Control.Exception as E
-import qualified Data.MessagePack as MP
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as BL
-import CMRunCC.Messages (readMessage, writeMessage)
 import Codec.Compression.Zstd (compress, decompress, Decompress (..))
 import Control.Concurrent
+import qualified Control.Exception as E
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.MessagePack as MP
+import Network.Socket
+
+import CMRunCC.Messages (readMessage, writeMessage)
+
 
 resolve host port = do
     let hints = defaultHints { addrFlags = [AI_PASSIVE], addrSocketType = Stream }

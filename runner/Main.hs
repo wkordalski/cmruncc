@@ -3,24 +3,22 @@
 
 module Main where
 
-import Network.Socket
-import CMRunCC.Network (resolve, handle, send)
-import CMRunCC.Messages (RunRequest (..), RunResults (..))
-import qualified Control.Exception as E
 import Control.Concurrent
+import qualified Control.Exception as E
 import Control.Monad
-import qualified Data.ByteString.Char8 as BS
-import Data.ByteString.Base16 (decode)
-import System.Process
-import qualified Data.Text as T
-import qualified Data.Text.IO as TI
 import Control.Monad.Except
 import Control.Monad.IO.Class
-import System.Timeout
-import System.Posix.Pty
-import Data.Char (ord)
+import qualified Data.ByteString.Char8 as BS
+import Data.ByteString.Base16 (decode)
+import qualified Data.Text as T
+import Network.Socket
 import System.IO.Temp
+import System.Posix.Pty
+import System.Process
+import System.Timeout
 
+import CMRunCC.Network (resolve, handle, send)
+import CMRunCC.Messages (RunRequest (..), RunResults (..))
 import Config ( readConfig, RunnerConfig (..) )
 import Pty
 
@@ -71,26 +69,25 @@ runner heni_cmd temp_dir device run_queue results_queue = do
                     putStrLn "Failed connecting to the terminal!"
                 Just () -> do 
                     putStrLn "Terminal is ready!"
-                    run_query_processor bpty heni_cmd temp_dir device run_queue results_queue
+                    run_hex_loop bpty heni_cmd temp_dir device run_queue results_queue
         )
     runner heni_cmd temp_dir device run_queue results_queue
 
-run_query_processor bpty heni_cmd temp_dir device run_queue results_queue = forever $ do
+run_hex_loop bpty heni_cmd temp_dir device run_queue results_queue = forever $ do
     req <- readChan run_queue
     let RunRequest { ident } = req
-    res <- runExceptT $ run bpty heni_cmd temp_dir device req
+    res <- runExceptT $ run_hex bpty heni_cmd temp_dir device req
     case res of
-        Left () -> writeChan results_queue $ RunResults { ident, symbols = [] }
+        Left () -> writeChan results_queue $ RunResults { ident, symbols = [] } -- TODO
         Right v -> writeChan results_queue v
 
-run :: BPty -> String -> String -> String -> RunRequest -> ExceptT () IO RunResults
-run bpty heni_cmd temp_dir device req =
+run_hex :: BPty -> String -> String -> String -> RunRequest -> ExceptT () IO RunResults
+run_hex bpty heni_cmd temp_dir device req =
     let RunRequest { ident, hex, symbols } = req in
     withTempFile temp_dir "flash-.hex" $ \fn h -> do
         liftIO $ BS.hPut h hex
-        retry 2 $ timeoutE 40 () $ program_and_read bpty heni_cmd fn device req
+        retry 2 $ timeoutE (40*1000000) () $ program_and_read bpty heni_cmd fn device req
 
-        
 
 program_and_read :: BPty -> String -> String -> String -> RunRequest -> ExceptT () IO RunResults
 program_and_read bpty heni_cmd hex_file device req = do
@@ -126,10 +123,9 @@ retry 0 m = m
 retry n m = do
     m `catchError` \_ -> retry (n-1) m
 
--- Note: Timeout is in seconds here!
 timeoutE :: Int -> e -> ExceptT e IO a -> ExceptT e IO a
 timeoutE t e m = do
-    res <- liftIO $ timeout (t * 1000000) $ runExceptT m
+    res <- liftIO $ timeout t $ runExceptT m
     case res of
         Nothing -> throwError e
         Just (Left e) -> throwError e

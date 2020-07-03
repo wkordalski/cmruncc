@@ -1,7 +1,8 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
 
 module Config (readConfig, BuilderConfig (..)) where
 
+import Data.Aeson.TH
 import Data.Yaml
 import System.FilePath
 
@@ -10,9 +11,7 @@ data BuilderConfig = BuilderConfig {
     scheduler_address :: String
 }
 
-instance FromJSON BuilderConfig where
-    parseJSON (Object m) = BuilderConfig <$> m .: "builders" <*> m .: "scheduler_address"
-    parseJSON _ = fail ("Builder config has incorrect format")
+$(deriveJSON defaultOptions ''BuilderConfig)
 
 readConfig :: IO BuilderConfig
 readConfig = do

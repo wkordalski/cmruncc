@@ -6,15 +6,16 @@ module CMRunCC.Messages (
     RunRequest (..), PublicAPIRequest (..), PublicAPIResponse (..),
     BuildResults (..), RunResults (..)) where
 
-import Network.Socket (Socket)
-import Network.Socket.ByteString (recv, sendAll)
+import Data.Bits
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
 import qualified Data.MessagePack.Object as MP
-import Data.Bits
-import qualified Data.Vector as V
 import qualified Data.Text as T
+import qualified Data.Vector as V
 import Data.Word
+import Network.Socket (Socket)
+import Network.Socket.ByteString (recv, sendAll)
+
 
 -- Vector construction and lookup
 
@@ -25,8 +26,8 @@ import Data.Word
 (!~>) v k =
     let filtered = V.filter (\e ->
             case e of
-            (MP.ObjectStr t, _) -> (T.unpack t == k)
-            _ -> False
+                (MP.ObjectStr t, _) -> (T.unpack t == k)
+                _ -> False
             ) v
     in if V.null filtered then Nothing else MP.fromObject $ snd $ V.head filtered
 
@@ -197,5 +198,3 @@ instance MP.MessagePack RunResults where
         ident <- v !~> "ident"
         symbols <- v !~> "symbols"
         return $ RunResults { .. }
-
-

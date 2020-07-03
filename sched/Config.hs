@@ -1,16 +1,15 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
 
 module Config (readConfig, SchedConfig (..)) where
 
+import Data.Aeson.TH
 import Data.Yaml
 
 data SchedConfig = SchedConfig {
     listen_address :: String
 }
 
-instance FromJSON SchedConfig where
-    parseJSON (Object m) = SchedConfig <$> m .: "listen_address"
-    parseJSON _ = fail ("Builder config has incorrect format")
+$(deriveJSON defaultOptions ''SchedConfig)
 
 readConfig :: IO SchedConfig
 readConfig = do
