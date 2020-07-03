@@ -1,0 +1,5 @@
+# directories for workers
+builders:
+  - worker1
+  - worker2
+scheduler_address: '127.0.0.1'

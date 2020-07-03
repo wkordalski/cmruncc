@@ -1,0 +1,5 @@
+devices: ['2b3', '177', '179', '19a', '1c1']
+
+heni_cmd: '/home/wkordalski/.virtualenvs/heni/bin/heni'
+temp_dir: 'temp'
+scheduler_address: '127.0.0.1'
