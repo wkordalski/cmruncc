@@ -4,11 +4,11 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a435fc0538d678f6f1b876ed75377f9a45e2f199a95a176e58680272bbf5f6ea
+-- hash: 1a21ae071b77ecabcfaada46a3189dda975c800d81640ed1d76af0abc44e990a
 
 name:           cmruncc
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/wojtex/cmruncc#readme>
+description:    Please see the README on GitHub at <https://github.com/wkordalski/cmruncc#readme>
 homepage:       https://github.com/wojtex/cmruncc#readme
 bug-reports:    https://github.com/wojtex/cmruncc/issues
 author:         Wojciech Kordalski
