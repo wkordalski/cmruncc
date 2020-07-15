@@ -82,8 +82,9 @@ run_hex_loop bpty heni_cmd temp_dir device run_queue results_queue = forever $ d
         Right v -> writeChan results_queue v
 
 run_hex :: BPty -> String -> String -> String -> RunRequest -> ExceptT () IO RunResults
-run_hex bpty heni_cmd temp_dir device req =
-    let RunRequest { ident, hex, symbols } = req in
+run_hex bpty heni_cmd temp_dir device req = do
+    let RunRequest { ident, hex, symbols } = req
+    if BS.null hex then throwError () else return ()
     withTempFile temp_dir "flash-.hex" $ \fn h -> do
         liftIO $ BS.hPut h hex
         retry 2 $ timeoutE (40*1000000) () $ program_and_read bpty heni_cmd fn device req

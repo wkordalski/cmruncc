@@ -12,6 +12,7 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.Text as T
 import qualified Data.Text.IO as TI
 import Network.Socket
+import System.Exit
 import System.FilePath
 import System.Process
 
@@ -62,6 +63,7 @@ builder path build_queue results_queue = forever $ do
 build :: FilePath -> PublicAPIRequest -> ExceptT BuildResults IO BuildResults
 build path req = do
     let PublicAPIRequest { ident, build_spec, sources, symbols } = req
+    let errorBuildResults = BuildResults { ident, flash=BS.empty, hex=BS.empty, emulator_main_addr=0, emulator_cdl_start_addr=0, emulator_exit_addr=0, symbols=[] }
 
     -- write build.spec
     liftIO $ BS.writeFile (path </> "build.spec") build_spec
@@ -69,6 +71,7 @@ build path req = do
     -- precompile to generate Makefile
     (_, _, _, ph) <- liftIO $ createProcess (proc "./smake/smake" ["cherry"]) {cwd = Just path}
     rc <- liftIO $ waitForProcess ph
+    case rc of { ExitSuccess -> return (); ExitFailure _ -> throwError errorBuildResults }
 
     let build_dir = path </> "build" </> "cherry"
 
@@ -81,6 +84,7 @@ build path req = do
             (_, _, _, ph) <- liftIO $ createProcess (proc "arm-none-eabi-as" [src, "-o", obj])
             rc <- liftIO $ waitForProcess ph
             liftIO $ putStrLn ("Assembly result: " ++ show rc)
+            case rc of { ExitSuccess -> return (); ExitFailure _ -> throwError errorBuildResults }
         else
             return ()
 
@@ -96,6 +100,7 @@ build path req = do
     -- run make
     (_, _, _, ph) <- liftIO $ createProcess (proc "make" []) {cwd = Just build_dir}
     rc <- liftIO $ waitForProcess ph
+    case rc of { ExitSuccess -> return (); ExitFailure _ -> throwError errorBuildResults }
 
     -- read results
     flash <- liftIO $ BS.readFile (build_dir </> "app.flash")
